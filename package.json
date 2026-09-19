@@ -1,0 +1,5 @@
+{
+  "name": "teamvicov", "version": "0.1.0", "private": true, "type": "module",
+  "engines": {"node": ">=24.14.0 <25"},
+  "scripts": {"start": "node src/server.js", "test": "node --test", "backup": "node src/backup.js"}
+}
