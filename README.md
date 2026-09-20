@@ -1,62 +1,103 @@
-# Team Vicov
+# Team Vicov — registrul privat
 
-Prima versiune funcțională, 0.1.0: catalog public, administrare protejată, registru de porumbei, fotografii și pedigree manual pe două generații. Interfață în română, adaptată pentru telefon.
+Laravel 13 + Filament 5, PHP 8.4. Ramură de dezvoltare `laravel-filament`.
+Aplicația de pe `main` este independentă. Această ramură înlocuiește aplicația Node cu Laravel numai într-o instalare nouă.
 
-## Ce funcționează
+## Funcționalități implementate
 
-- Adăugare și editare porumbei; serie unică, nume, sex, culoare, proprietar, rezultate, note.
-- Fișe private implicit; publicare controlată în catalog. Proprietarul și notele interne nu sunt expuse public.
-- Fotografii JPG/PNG/WebP de maximum 5 MB, păstrate în baza de date.
-- Părinți selectați din registru; verificare sex și prevenirea ciclurilor genealogice. Părinții privați nu apar în catalog.
-- Autentificare administrator, sesiuni de 8 ore, limitare încercări, verificarea originii cererilor și protecție împotriva suprascrierii unei fișe editate între timp.
-- SQLite persistent, interogări parametrizate, endpoint `/healthz`, comandă de backup.
+- Autentificare administrativă fără înscriere publică; comandă interactivă pentru primul administrator.
+- Registru: serie păstrată ca text, nume, sex, an, țară, culoare, origine, categorie, compartiment, note și rezultate.
+- Porumbei proprii / strămoși de referință, arhivare și istoric al stării.
+- Părinți legați între fișe; validare pentru cicluri, sex incompatibil și serii duplicate.
+- Pedigree 3–5 generații, tipărire și salvare PDF din browser. Arborele din baza de date nu este limitat la cinci generații.
+- Fotografii și PDF-uri pe stocare privată; descărcare numai după autentificare.
+- Categorii, compartimente, numele crescătoriei, logo și antet configurabile din panou.
+- Import WooCommerce în română: previzualizare, serii/sex/culoare/descrieri, omitere duplicate, tranzacție. Nu importă automat imaginile externe sau părinții și nu publică fișele.
+- Export CSV al registrului; fotografiile și backupul complet sunt separate de acest export.
 
-Nu sunt implementate încă: licitare, conturi de cumpărători, plăți/decontări, comisioane, notificări, import asistat/OCR de pedigree. Pagina de licitații indică explicit că modulul este în pregătire. Nu există date demonstrative sau parole implicite în producție.
+Toate datele sunt private. Catalogul public, perechile/cuiburile și rezultatele structurate sunt etape ulterioare. Meniul public și paginile de prezentare nu există încă.
 
-## Coolify — prima instalare
+## Local
 
-1. În aplicație, General → Build strategy: **Dockerfile**. Director `/`, fișier `/Dockerfile`, port expus `3000`. Dockerfile fixează versiunea Node utilizată la testare; nu există dependențe npm de instalat.
-2. În **Domains**, folosește adresa temporară existentă, cu prefix **https://**. Domeniul trebuie să rezolve spre VPS, iar porturile 80 și 443 să fie accesibile pentru certificat.
-3. În **Environment Variables**, adaugă variabile disponibile la rulare:
-   - `APP_ORIGIN=https://ADRESA-TEMPORARA-EXACTA` (fără slash la final)
-   - `ADMIN_PASSWORD=` o parolă unică, minimum 16 caractere, aleasă în Coolify. Nu o trimite în conversație și nu o salva în GitHub.
-   - `DATA_DIR=/app/data` (implicit în Dockerfile)
-4. În **Persistent Storage**, adaugă un volume cu nume `teamvicov-data`, destination `/app/data`. Aplicația rulează ca utilizator `node` (UID 1000). Folosește volume Docker; dacă alegi un bind mount, directorul trebuie să poată fi scris de UID 1000.
-5. După configurare, **Deploy**. Accesează pagina publică și `/admin`, apoi autentifică-te cu parola setată.
-6. Configurează Healthcheck pe `GET /healthz`, port 3000, dacă activezi verificarea din Coolify.
-
-**Nu publica fără volumul persistent.** Fotografiile și registrul sunt stocate în `/app/data/teamvicov.sqlite`. La schimbarea domeniului actualizează și `APP_ORIGIN`, apoi repornește aplicația. `NODE_ENV=production` este setat în Dockerfile; autentificarea cere HTTPS în producție. Nu folosi mai multe replici cu această bază SQLite locală.
-
-## Dezvoltare
-
-Necesită Node 24.14+ (testat cu 24.19.0). Nu există pachete externe.
-
-```bash
-export ADMIN_PASSWORD='o-parola-locala-de-minimum-16-caractere'
-export APP_ORIGIN='http://localhost:3000'
-npm start
+```sh
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan teamvicov:admin
+php artisan serve
 ```
 
-`npm test` rulează teste de integrare izolate: acces neautorizat, origini externe, confidențialitate, duplicate, pedigree circular, editări concurente, imagini, logout și persistență după repornire. Datele de test sunt create în directoare temporare și șterse la final.
+Pentru SQLite, creează `database/database.sqlite` înainte de migrare dacă instalarea Composer nu l-a creat.
+Deschide `/admin`. Filament își publică propriile resurse; această versiune nu necesită un build npm.
+
+```sh
+php artisan test
+```
+
+## Coolify — aplicație nouă de test
+
+1. Creează o resursă PostgreSQL separată, de exemplu `teamvicov-registry-test`. Pornește-o și notează hostname-ul intern, baza, utilizatorul și parola din Coolify. Fără port public pentru baza de date.
+2. Creează o aplicație **Git Repository (with GitHub App)** din `petrom25/teamvicov`, ramura **laravel-filament**.
+3. Build Pack **Dockerfile**, Base Directory `/`, Dockerfile Location `/Dockerfile`, port intern **80**.
+4. Alege un domeniu **HTTPS** separat pentru testare. Configurează variabilele de mai jos **Runtime**, nu Buildtime.
+5. Persistent Storage: volum nou `teamvicov-registry-storage`, Destination Path **`/var/www/html/storage`**. Nu reutiliza volumul aplicației Node.
+6. Deploy. Entrypoint-ul execută migrările și pornește Apache. Healthcheck: `/up`, port 80.
+7. În Terminal-ul **aplicației Laravel**, rulează `php artisan teamvicov:admin`. Completează numele, emailul și parola ascunsă în terminal. Nu există parolă implicită.
+8. Deschide `https://DOMENIUL-DE-TEST/admin`. Testează o fișă, fotografia și pedigree-ul, apoi un redeploy pentru verificarea persistenței.
+
+Variabile Runtime (înlocuiește valorile marcate; nu le salva în Git):
+
+```dotenv
+APP_NAME="Team Vicov"
+APP_ENV=production
+APP_DEBUG=false
+APP_KEY=base64:CHEIE_GENERATA_LOCAL
+APP_URL=https://DOMENIUL-DE-TEST
+APP_LOCALE=ro
+APP_FALLBACK_LOCALE=en
+DB_CONNECTION=pgsql
+DB_HOST=HOSTNAME_INTERN_DIN_COOLIFY
+DB_PORT=5432
+DB_DATABASE=BAZA_DIN_COOLIFY
+DB_USERNAME=UTILIZATORUL_DIN_COOLIFY
+DB_PASSWORD=PAROLA_DIN_COOLIFY
+SESSION_DRIVER=database
+SESSION_ENCRYPT=true
+SESSION_SECURE_COOKIE=true
+CACHE_STORE=database
+QUEUE_CONNECTION=sync
+FILESYSTEM_DISK=local
+LOG_CHANNEL=stderr
+LOG_LEVEL=warning
+```
+
+Generează APP_KEY în terminalul VPS, fără a o trimite în conversație:
+
+```sh
+printf 'base64:'
+openssl rand -base64 32
+```
+
+Copiază rezultatul pe o singură linie în APP_KEY și păstrează cheia la toate redeploy-urile. `ADMIN_PASSWORD` și `APP_ORIGIN` din aplicația Node nu sunt folosite aici.
+Serverul web este destinat rețelei interne Coolify, în spatele proxy-ului HTTPS; nu publica direct portul containerului pe internet.
+
+Sursa pașilor Dockerfile: [documentația Coolify](https://coolify.io/docs/applications/builds/dockerfile).
 
 ## Backup și restaurare
 
-În terminalul containerului aplicației:
+Exportul CSV este pentru portabilitate, **nu** este un backup complet și nu se reimportă prin importatorul WooCommerce. ID-urile părinților sunt păstrate în export.
 
-```bash
-npm run backup
-```
+Backupul complet include:
+- dump PostgreSQL (cu utilizatori, relații și istoric);
+- întregul volum `teamvicov-registry-storage`, inclusiv `app/private`;
+- APP_KEY și celelalte variabile Runtime, păstrate separat în seiful de parole;
+- commitul aplicației care a produs backupul.
 
-Creează un snapshot SQLite consistent, inclusiv fotografii, în `/app/data/backups/`. Copiază periodic backupurile în afara VPS-ului; o copie pe același disc nu protejează împotriva pierderii serverului. Backupurile conțin și date private.
+Înainte de date reale, configurează backupuri PostgreSQL programate în Coolify către stocare externă și backup separat al volumului. Pentru o copie consistentă, oprește scrierile (`php artisan down`), realizează dumpul bazei și copia volumului, apoi `php artisan up`. Nu lăsa aplicația în mentenanță dacă un backup eșuează.
 
-Pentru restaurare: oprește aplicația, păstrează o copie a întregului director actual, înlocuiește `teamvicov.sqlite` cu snapshotul ales și îndepărtează fișierele auxiliare vechi `teamvicov.sqlite-wal` și `teamvicov.sqlite-shm` înainte de repornire. Păstrează drepturile de scriere pentru UID 1000. Verifică registrul după pornire. Nu înlocui baza în timp ce aplicația rulează.
+Restaurare: folosește o bază și un volum noi într-o aplicație izolată; restaurează dumpul și fișierele, setează cheia originală, pornește aceeași versiune, apoi verifică autentificarea, numărul de porumbei, legăturile de rudenie și fotografiile. Treci la o versiune nouă numai după verificarea restaurării. Backupurile automate și restaurarea nu sunt configurate de simpla instalare a codului.
 
-## Structură
+## Limitele verificării locale
 
-- `src/server.js` — HTTP, autentificare, API, fotografii.
-- `src/db.js` — schema și validarea genealogiei.
-- `src/backup.js` — snapshot consistent.
-- `public/` — catalog, administrare, interfață responsive.
-- `test/` — verificări de integrare.
-
-Documentație tehnică: https://nodejs.org/docs/latest-v24.x/api/sqlite.html și https://coolify.io/docs/applications/builds/dockerfile
+Testele automatizate folosesc SQLite. Configurația Docker/PostgreSQL trebuie verificată în noua instalare Coolify; mediul de dezvoltare nu are Docker sau PostgreSQL disponibil. Blocarea globală a scrierilor genealogice folosește `SELECT FOR UPDATE` pe PostgreSQL. Nu există încă o probă automată cu două procese PostgreSQL concurente.

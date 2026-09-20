@@ -1,0 +1,6 @@
+<x-filament-panels::page>
+<p>Încarcă exportul WooCommerce complet, în limba română. Seria este preluată din coloana „Nume”. Fișele sunt private. Duplicatele sunt omise, fără suprascriere.</p>
+<p>Prima versiune preia seria, sexul, culoarea și descrierile. Fotografiile de la adresele externe și legăturile genealogice se adaugă separat. Starea „publicat” din WooCommerce nu este importată.</p>
+<form wire:submit="inspect"><input type="file" wire:model="file" accept=".csv,text/csv">@error('file')<p style="color:#dc2626">{{ $message }}</p>@enderror<div style="margin-top:20px"><x-filament::button type="submit" wire:loading.attr="disabled">Previzualizează</x-filament::button></div></form>
+@if($preview)<div style="overflow:auto"><table style="width:100%;text-align:left"><thead><tr><th>Rând</th><th>Serie</th><th>Sex</th><th>Culoare</th><th>Rezultat</th></tr></thead><tbody>@foreach($preview as $row)<tr><td>{{ $row['line'] }}</td><td>{{ $row['data']['ring']??'—' }}</td><td>{{ $row['data']['sex']??'—' }}</td><td>{{ $row['data']['color']??'—' }}</td><td>{{ $row['error']??'Fișă privată nouă' }}</td></tr>@endforeach</tbody></table></div><x-filament::button wire:click="runImport" wire:confirm="Import fișele valide ca înregistrări private?" wire:loading.attr="disabled">Importă fișele valide</x-filament::button>@endif
+</x-filament-panels::page>
